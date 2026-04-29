@@ -62,7 +62,8 @@ def build_vector_store(pdf_text):
     openai_api_key = st.session_state.get("openai_api_key")
 
     if not openai_api_key:
-        st.error("OpenAI API Key를 입력해주세요.")
+        st.sidebar.warning("OpenAI API Key를 입력해주세요.")
+        st.experimental_rerun()  # 페이지를 다시 로드하여 API Key 입력 위치로 이동
         return
 
     embeddings = OpenAIEmbeddings(
