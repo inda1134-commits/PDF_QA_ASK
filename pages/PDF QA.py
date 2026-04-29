@@ -8,14 +8,12 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-
 def init_page():
     st.set_page_config(
         page_title="Ask My PDF(s)",
         page_icon="♬"
     )
     st.sidebar.title("옵션")
-
 
 def select_model(temperature=0):
     selected_model = st.session_state.get("selected_model")
@@ -25,7 +23,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("OpenAI API Key를 입력해주세요.")
-            st.stop()
+            st.experimental_rerun()
 
         return ChatOpenAI(
             temperature=temperature,
@@ -38,7 +36,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("OpenAI API Key를 입력해주세요.")
-            st.stop()
+            st.experimental_rerun()
 
         return ChatOpenAI(
             temperature=temperature,
@@ -51,7 +49,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("Anthropic API Key를 입력해주세요.")
-            st.stop()
+            st.experimental_rerun()
 
         return ChatAnthropic(
             temperature=temperature,
@@ -64,7 +62,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("Google Gemini API Key를 입력해주세요.")
-            st.stop()
+            st.experimental_rerun()
 
         return ChatGoogleGenerativeAI(
             temperature=temperature,
@@ -75,7 +73,6 @@ def select_model(temperature=0):
     else:
         st.error("LLM을 먼저 선택해주세요.")
         st.stop()
-
 
 def init_qa_chain():
     llm = select_model()
@@ -111,7 +108,6 @@ def init_qa_chain():
 
     return chain
 
-
 def page_ask_my_pdf():
     chain = init_qa_chain()
 
@@ -124,7 +120,6 @@ def page_ask_my_pdf():
         st.markdown("## 답변")
         st.write_stream(chain.stream(query))
 
-
 def main():
     init_page()
 
@@ -132,9 +127,9 @@ def main():
 
     if "vectorstore" not in st.session_state:
         st.warning("먼저 ▤ Upload PDF(s)에서 PDF 파일을 업로드해 주세요.")
+        st.experimental_rerun()
     else:
         page_ask_my_pdf()
-
 
 if __name__ == "__main__":
     main()
