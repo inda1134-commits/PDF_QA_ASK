@@ -29,6 +29,9 @@ def get_pdf_text():
     )
 
     if pdf_file:
+        # PDF 파일명을 세션 상태에 저장
+        st.session_state['document_name'] = pdf_file.name
+
         pdf_text = ""
 
         with st.spinner("PDF 로딩 중..."):
