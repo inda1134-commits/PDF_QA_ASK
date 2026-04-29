@@ -83,7 +83,7 @@ def build_vector_store(pdf_text):
                 embeddings
             )
 
-    st.success("벡터 스토어 저장 완료!")
+    st.success("벡터 스토어 저장 완료! 'DB 초기화' 버튼을 누르기 전까지 선택된 상태로 유지됩니다.")
 
 
 def page_pdf_upload_and_build_vector_db():
