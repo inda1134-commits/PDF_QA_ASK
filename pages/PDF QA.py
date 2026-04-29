@@ -111,8 +111,11 @@ def init_qa_chain():
 def page_ask_my_pdf():
     chain = init_qa_chain()
 
+    # Assuming the uploaded document name is stored in st.session_state['document_name']
+    document_name = st.session_state.get('document_name', '문서명 없음')
+
     query = st.text_input(
-        "PDF에 대한 질문을 입력하세요:",
+        f"PDF에 대한 질문을 입력하세요: ({document_name})",
         key="input"
     )
 
