@@ -5,7 +5,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-
 def init_page():
     st.set_page_config(
         page_title="Upload PDF(s)",
