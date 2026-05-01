@@ -272,16 +272,18 @@ def main():
 
         prompt_text = IMAGE_PROMPT_TEMPLATE.format(user_input=user_input) + "\nImage URL: " + image_data_url
 
-        st.markdown("### Question")
-        st.write(user_input)
+        st.markdown("### PROMPT")
+        st.write(prompt_text)
 
         st.markdown("### Image Prompt (영문)")
 
         res = llm.generate([prompt_text])
-
+        
         image_prompt = _extract_text_from_llm_result(res)
 
         image_prompt = image_prompt.strip()
+        st.markdown("### IMAGE PROMPT")
+        st.write(image_prompt)
 
         if not image_prompt:
             st.error("프롬프트 생성에 실패했습니다.")
