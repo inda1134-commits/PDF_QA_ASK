@@ -3,7 +3,6 @@ import os
 import streamlit as st
 
 from openai import OpenAI
-from langchain_openai import ChatOpenAI
 
 # 공통 사이드바 및 모델 선택을 shared.py로 분리하여 중복 제거
 from shared import init_sidebar, select_model
@@ -29,41 +28,6 @@ IMAGE_PROMPT_TEMPLATE = """
 
 이미지 생성용 프롬프트를 영어로 출력해주세요.
 """
-
-
-def get_openai_llm_for_image(openai_api_key: str, selected_model: str):
-    """이미지 프롬프트 생성을 위해 OpenAI LLM을 반환합니다. 여기서는 OpenAI 모델만 허용합니다."""
-    if not openai_api_key:
-        st.info("좌측 사이드바에서 OpenAI API Key를 입력해주세요.")
-        st.stop()
-
-    # 이미지 프롬프트 생성을 위해 OpenAI 모델을 사용하도록 제한
-    if selected_model not in ["GPT-5 mini", "GPT-5.1", "gpt-4o"]:
-        st.error("이미지 프롬프트 생성을 위해 OpenAI 모델을 선택해주세요 (예: GPT-5 mini, GPT-5.1, gpt-4o).")
-        st.stop()
-
-    model_map = {
-        "GPT-5 mini": "gpt-5-mini",
-        "GPT-5.1": "gpt-5.1",
-        "gpt-4o": "gpt-4o",
-    }
-
-    model_name = model_map.get(selected_model, "gpt-4o")
-
-    try:
-        os.environ["OPENAI_API_KEY"] = openai_api_key
-
-        llm = ChatOpenAI(
-            model=model_name,
-            temperature=0,
-            api_key=openai_api_key
-        )
-
-        return llm
-
-    except Exception as e:
-        st.error(f"LLM 초기화 오류: {str(e)}")
-        st.stop()
 
 
 def generate_image(prompt, openai_api_key):
@@ -227,7 +191,9 @@ def main():
 
     # Vision Prompt 생성
     try:
-        llm = get_openai_llm_for_image(openai_api_key, selected_model)
+        # PDF QA.py와 동일하게 shared.select_model을 사용하여 LLM과 API 키를 처리합니다.
+        # select_model은 st.session_state에서 선택된 모델과 API 키를 확인하고 적절한 LLM 인스턴스를 반환합니다.
+        llm = select_model()
 
         prompt_text = IMAGE_PROMPT_TEMPLATE.format(user_input=user_input) + "\nImage URL: " + image_data_url
 
