@@ -23,7 +23,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("OpenAI API Key를 입력해주세요.")
-            st.experimental_rerun()
+            st.stop()
 
         return ChatOpenAI(
             temperature=temperature,
@@ -36,7 +36,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("OpenAI API Key를 입력해주세요.")
-            st.experimental_rerun()
+            st.stop()
 
         return ChatOpenAI(
             temperature=temperature,
@@ -49,7 +49,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("Anthropic API Key를 입력해주세요.")
-            st.experimental_rerun()
+            st.stop()
 
         return ChatAnthropic(
             temperature=temperature,
@@ -62,7 +62,7 @@ def select_model(temperature=0):
 
         if not api_key:
             st.error("Google Gemini API Key를 입력해주세요.")
-            st.experimental_rerun()
+            st.stop()
 
         return ChatGoogleGenerativeAI(
             temperature=temperature,
@@ -130,7 +130,9 @@ def main():
 
     if "vectorstore" not in st.session_state:
         st.warning("먼저 ▤ Upload PDF(s)에서 PDF 파일을 업로드해 주세요.")
-        st.experimental_rerun()
+        # Avoid calling experimental_rerun here which can raise exceptions in some contexts.
+        # Use st.stop() to halt execution of the script until the user uploads files.
+        st.stop()
     else:
         page_ask_my_pdf()
 
