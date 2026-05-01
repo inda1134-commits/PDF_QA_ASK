@@ -5,7 +5,7 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 
-
+# 일부 다른 페이지와 공유하는 세션 키를 사용하여 사이드바 설정을 한 곳에서 관리합니다.
 # --------------------------------------------------
 # 이미지 프롬프트 템플릿
 # --------------------------------------------------
@@ -35,6 +35,10 @@ IMAGE_PROMPT_TEMPLATE = """
 # Sidebar (공통 설정을 session_state에 저장하여 다른 페이지와 중복을 방지)
 # --------------------------------------------------
 def init_sidebar():
+    # 사이드바에 이미 값이 있으면 덮어쓰지 않습니다. (중복 방지)
+    if "sidebar_initialized" in st.session_state:
+        return st.session_state.get("openai_api_key", ""), st.session_state.get("selected_model", "GPT-5 mini")
+
     st.sidebar.title("⚙️ Options")
 
     # API Keys
@@ -79,6 +83,7 @@ def init_sidebar():
     st.session_state["anthropic_api_key"] = anthropic_api_key
     st.session_state["google_api_key"] = google_api_key
     st.session_state["selected_model"] = selected_model
+    st.session_state["sidebar_initialized"] = True
 
     return openai_api_key, selected_model
 
@@ -117,6 +122,73 @@ def get_openai_llm(openai_api_key, selected_model):
 
     except Exception as e:
         st.error(f"LLM 초기화 오류: {str(e)}")
+        st.stop()
+
+
+# --------------------------------------------------
+# 분석용 모델 선택 (PDF 합쳐서 분석할 때 사용)
+# 간단한 선택기를 로컬에 둡니다. PDF QA와 동일한 모델 이름을 사용합니다.
+# --------------------------------------------------
+def select_model_for_analysis(temperature=0):
+    from langchain_anthropic import ChatAnthropic
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    selected_model = st.session_state.get("selected_model")
+
+    if selected_model == "GPT-5 mini":
+        api_key = st.session_state.get("openai_api_key")
+
+        if not api_key:
+            st.error("OpenAI API Key를 입력해주세요.")
+            st.stop()
+
+        return ChatOpenAI(
+            temperature=temperature,
+            model="gpt-5-mini",
+            api_key=api_key
+        )
+
+    elif selected_model == "GPT-5.1":
+        api_key = st.session_state.get("openai_api_key")
+
+        if not api_key:
+            st.error("OpenAI API Key를 입력해주세요.")
+            st.stop()
+
+        return ChatOpenAI(
+            temperature=temperature,
+            model="gpt-5.1",
+            api_key=api_key
+        )
+
+    elif selected_model == "Claude Sonnet 4.5":
+        api_key = st.session_state.get("anthropic_api_key")
+
+        if not api_key:
+            st.error("Anthropic API Key를 입력해주세요.")
+            st.stop()
+
+        return ChatAnthropic(
+            temperature=temperature,
+            model="claude-sonnet-4-5-20250929",
+            api_key=api_key
+        )
+
+    elif selected_model == "Gemini 2.5 Flash":
+        api_key = st.session_state.get("google_api_key")
+
+        if not api_key:
+            st.error("Google Gemini API Key를 입력해주세요.")
+            st.stop()
+
+        return ChatGoogleGenerativeAI(
+            temperature=temperature,
+            model="gemini-2.5-flash",
+            google_api_key=api_key
+        )
+
+    else:
+        st.error("LLM을 먼저 선택해주세요.")
         st.stop()
 
 
@@ -206,28 +278,22 @@ def main():
                     st.markdown("### 결합된 문서(일부)")
                     st.write(combined_text[:5000] + ("..." if len(combined_text) > 5000 else ""))
 
-                    # OpenAI LLM을 이용해 결합된 문서 분석
-                    llm = get_openai_llm(openai_api_key, selected_model)
-
-                    st.markdown("### 문서 분석 결과")
-
-                    analysis_prompt = (
-                        "다음은 여러 PDF에서 추출한 결합된 텍스트입니다. "
-                        "중요한 내용 요약, 주요 키포인트, 가능한 질문 및 주의할 점을 한국어로 정리해주세요.\n\n" + combined_text
-                    )
-
-                    # Streaming으로 분석 결과 출력
+                    # 선택된 모델로 결합된 문서 분석
                     try:
-                        analysis_query = [
-                            (
-                                "user",
-                                [
-                                    {"type": "text", "text": analysis_prompt}
-                                ]
-                            )
-                        ]
+                        llm = select_model_for_analysis()
 
-                        st.write_stream(llm.stream(analysis_query))
+                        st.markdown("### 문서 분석 결과")
+
+                        analysis_prompt = (
+                            "다음은 여러 PDF에서 추출한 결합된 텍스트입니다. "
+                            "중요한 내용 요약, 주요 키포인트, 가능한 질문 및 주의할 점을 한국어로 정리해주세요.\n\n" + combined_text
+                        )
+
+                        # 간단히 분석 결과를 가져와 보여줍니다.
+                        res = llm.generate([analysis_prompt])
+                        analysis_text = "".join([g.text for g in res.generations[0]])
+
+                        st.text_area("문서 분석", value=analysis_text, height=400)
 
                     except Exception as e:
                         st.error(f"문서 분석 중 오류가 발생했습니다: {str(e)}")
@@ -299,39 +365,23 @@ def main():
     try:
         llm = get_openai_llm(openai_api_key, selected_model)
 
-        query = [
-            (
-                "user",
-                [
-                    {
-                        "type": "text",
-                        "text": IMAGE_PROMPT_TEMPLATE.format(
-                            user_input=user_input
-                        )
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image_data_url,
-                            "detail": "auto"
-                        }
-                    }
-                ]
-            )
-        ]
+        # 텍스트 기반 프롬프트로 구성합니다. (이미지 URL을 텍스트에 포함)
+        prompt_text = IMAGE_PROMPT_TEMPLATE.format(user_input=user_input) + "\nImage URL: " + image_data_url
 
         st.markdown("### Question")
         st.write(user_input)
 
-        st.markdown("### Image Prompt")
+        st.markdown("### Image Prompt (영문)")
 
-        image_prompt = st.write_stream(
-            llm.stream(query)
-        )
+        # LLM 호출 (동기)
+        res = llm.generate([prompt_text])
+        image_prompt = "".join([g.text for g in res.generations[0]]).strip()
 
         if not image_prompt:
             st.error("프롬프트 생성에 실패했습니다.")
             return
+
+        st.code(image_prompt)
 
     except Exception as e:
         st.error(f"프롬프트 생성 오류: {str(e)}")
