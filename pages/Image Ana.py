@@ -63,6 +63,74 @@ def init_page():
     st.header("Image Recognizer ◈")
 
 
+def _extract_text_from_llm_result(res):
+    """범용적으로 LLM 결과에서 텍스트를 추출합니다.
+    가능한 형태:
+    - 문자열
+    - res.generations (list[list[Generation]])
+      - Generation.text
+      - Generation.message.content
+      - Generation can be a str
+    - dict / list 등
+    """
+    # 문자열인 경우 그대로 반환
+    if isinstance(res, str):
+        return res
+
+    # LLMResult 형태
+    if hasattr(res, "generations"):
+        texts = []
+        try:
+            for gen_list in res.generations:
+                for gen in gen_list:
+                    # gen이 문자열일 수 있음
+                    if isinstance(gen, str):
+                        texts.append(gen)
+                        continue
+
+                    # 우선 text 속성 확인
+                    text = None
+                    if hasattr(gen, "text") and gen.text:
+                        text = gen.text
+
+                    # message.content 형태인지 확인
+                    elif hasattr(gen, "message") and gen.message:
+                        message = gen.message
+                        if hasattr(message, "content"):
+                            text = message.content
+                        elif isinstance(message, dict):
+                            text = message.get("content")
+                        else:
+                            text = str(message)
+
+                    # 드물게 content 속성을 바로 가지고 있을 수 있음
+                    elif hasattr(gen, "content"):
+                        text = gen.content
+
+                    else:
+                        text = str(gen)
+
+                    if text is not None:
+                        texts.append(text)
+        except Exception:
+            # 구조가 예상과 다르면 문자열 변환으로 처리
+            return str(res)
+
+        return "\n".join(texts).strip()
+
+    # 리스트나 dict 등 기타 타입 처리
+    if isinstance(res, list):
+        return "\n".join([str(r) for r in res]).strip()
+
+    if isinstance(res, dict):
+        for key in ("content", "text", "message"):
+            if key in res:
+                return res[key]
+        return str(res)
+
+    return str(res)
+
+
 def main():
     init_page()
 
@@ -98,7 +166,7 @@ def main():
                         text = getattr(d, "page_content", None)
                         if not text:
                             text = d.get("text") if isinstance(d, dict) else str(d)
-                        combined_texts.append(text)
+                        combined_text.append(text) if False else combined_texts.append(text)
 
                     combined_text = "\n\n".join(combined_texts)
 
@@ -118,11 +186,7 @@ def main():
 
                         res = llm.generate([analysis_prompt])
 
-                        analysis_text = ""
-                        for gen_list in res.generations:
-                            for gen in gen_list:
-                                text = getattr(gen, "text", None) or str(gen)
-                                analysis_text += text
+                        analysis_text = _extract_text_from_llm_result(res)
 
                         st.text_area("문서 분석", value=analysis_text, height=400)
 
@@ -204,10 +268,7 @@ def main():
 
         res = llm.generate([prompt_text])
 
-        image_prompt = ""
-        for gen_list in res.generations:
-            for gen in gen_list:
-                image_prompt += getattr(gen, "text", str(gen))
+        image_prompt = _extract_text_from_llm_result(res)
 
         image_prompt = image_prompt.strip()
 
