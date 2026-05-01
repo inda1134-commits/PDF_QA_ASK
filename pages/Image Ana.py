@@ -103,6 +103,7 @@ def _extract_text_from_llm_result(res):
                             text = message.get("content") or message.get("text") or str(message)
                         else:
                             # 객체일 경우 attribute로 접근하되 안전하게
+                            # message가 문자열인 경우를 대비하여 str(message)를 사용
                             text = getattr(message, "content", None) or getattr(message, "text", None) or str(message)
 
                     # 드물게 content 속성을 바로 가지고 있을 수 있음
@@ -273,7 +274,9 @@ def main():
 
         st.markdown("### Image Prompt (영문)")
 
-        res = llm.generate(prompt_text)
+        # generate는 문자열 또는 리스트를 받을 수 있지만, 일부 LLM 래퍼는 리스트(배치)로 전달해야
+        # 할 수 있으므로 문자열 하나를 리스트로 감싸서 일관되게 처리합니다.
+        res = llm.generate([prompt_text])
         
         image_prompt = _extract_text_from_llm_result(res)
 
