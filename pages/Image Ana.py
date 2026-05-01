@@ -14,10 +14,6 @@ IMAGE_PROMPT_TEMPLATE = """
 이미지 생성용 프롬프트를 작성해 주세요.
 프롬프트는 반드시 영어로 작성해야 합니다.
 
-# 주의:
-# 이미지 속 사람이나 특정 장소, 랜드마크, 상표 등을 식별하지 말아 주세요.
-# 묘사는 사진 속 시각적 요소를 중립적으로 설명하는 방식으로 해주세요.
-
 사용자 입력:
 {user_input}
 
@@ -272,12 +268,12 @@ def main():
 
         prompt_text = IMAGE_PROMPT_TEMPLATE.format(user_input=user_input) + "\nImage URL: " + image_data_url
 
-        st.markdown("### PROMPT")
-        st.write(prompt_text)
+        # st.markdown("### PROMPT")
+        # st.write(prompt_text)
 
         st.markdown("### Image Prompt (영문)")
 
-        res = llm.generate(prompt_text)
+        res = llm.generate([prompt_tex])
         
         image_prompt = _extract_text_from_llm_result(res)
 
