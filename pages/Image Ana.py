@@ -88,24 +88,30 @@ def _extract_text_from_llm_result(res):
                         texts.append(gen)
                         continue
 
-                    # 우선 text 속성 확인
                     text = None
-                    if hasattr(gen, "text") and gen.text:
-                        text = gen.text
 
-                    # message.content 형태인지 확인
+                    # 우선 text 속성 확인 (가장 일반적)
+                    if hasattr(gen, "text") and gen.text:
+                        # gen.text가 리스트나 기타 타입일 수 있으므로 안전하게 변환
+                        if isinstance(gen.text, (list, tuple)):
+                            text = "\n".join([str(t) for t in gen.text])
+                        else:
+                            text = str(gen.text)
+
+                    # message 형태인지 확인
                     elif hasattr(gen, "message") and gen.message:
                         message = gen.message
-                        if hasattr(message, "content"):
-                            text = message.content
-                        elif isinstance(message, dict):
-                            text = message.get("content")
+                        # message가 dict인지, 객체인지, 문자열인지 모두 안전하게 처리
+                        if isinstance(message, dict):
+                            # dict에 content 또는 text가 있을 수 있음
+                            text = message.get("content") or message.get("text") or str(message)
                         else:
-                            text = str(message)
+                            # 객체일 경우 attribute로 접근하되 안전하게
+                            text = getattr(message, "content", None) or getattr(message, "text", None) or str(message)
 
                     # 드물게 content 속성을 바로 가지고 있을 수 있음
                     elif hasattr(gen, "content"):
-                        text = gen.content
+                        text = getattr(gen, "content")
 
                     else:
                         text = str(gen)
@@ -125,7 +131,12 @@ def _extract_text_from_llm_result(res):
     if isinstance(res, dict):
         for key in ("content", "text", "message"):
             if key in res:
-                return res[key]
+                val = res[key]
+                if isinstance(val, str):
+                    return val
+                if isinstance(val, dict):
+                    return val.get("content") or val.get("text") or str(val)
+                return str(val)
         return str(res)
 
     return str(res)
