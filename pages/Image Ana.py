@@ -273,7 +273,7 @@ def main():
 
         st.markdown("### Image Prompt (영문)")
 
-        res = llm.generate([prompt_tex])
+        res = llm.generate(prompt_tex)
         
         image_prompt = _extract_text_from_llm_result(res)
 
