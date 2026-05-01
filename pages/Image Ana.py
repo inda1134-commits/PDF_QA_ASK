@@ -35,7 +35,7 @@ IMAGE_PROMPT_TEMPLATE = """
 # Sidebar (공통 설정을 session_state에 저장하여 다른 페이지와 중복을 방지)
 # --------------------------------------------------
 def init_sidebar():
-    # 사이드바에 이미 값이 있으면 덮어쓰지 않습니다. (중복 방지)
+    # 사이드바가 이미 초기화되어 있으면 기존 값을 재사용
     if "sidebar_initialized" in st.session_state:
         return st.session_state.get("openai_api_key", ""), st.session_state.get("selected_model", "GPT-5 mini")
 
@@ -64,18 +64,22 @@ def init_sidebar():
     )
 
     # 모델 선택 (세 페이지에서 공유하는 키 이름인 selected_model 사용)
+    model_options = [
+        "GPT-5 mini",
+        "GPT-5.1",
+        "gpt-4o",
+        "Claude Sonnet 4.5",
+        "Gemini 2.5 Flash",
+    ]
+
+    default_index = 0
+    if st.session_state.get("selected_model") in model_options:
+        default_index = model_options.index(st.session_state.get("selected_model"))
+
     selected_model = st.sidebar.selectbox(
         "Model 선택",
-        [
-            "GPT-5 mini",
-            "GPT-5.1",
-            "gpt-4o",
-            "Claude Sonnet 4.5",
-            "Gemini 2.5 Flash",
-        ],
-        index=["GPT-5 mini", "GPT-5.1", "gpt-4o", "Claude Sonnet 4.5", "Gemini 2.5 Flash"].index(
-            st.session_state.get("selected_model", "GPT-5 mini")
-        ) if st.session_state.get("selected_model") in ["GPT-5 mini", "GPT-5.1", "gpt-4o", "Claude Sonnet 4.5", "Gemini 2.5 Flash"] else 0
+        model_options,
+        index=default_index
     )
 
     # Write back to session_state so other pages can use the values
@@ -244,7 +248,9 @@ def main():
     vectorstore = st.session_state.get("vectorstore")
 
     if vectorstore:
-        st.info(f"로드된 PDF가 감지되었습니다: {st.session_state.get('document_name', '문서명 없음')}")
+        document_name = st.session_state.get('document_name', '문서명 없음')
+        st.info(f"로드된 PDF가 감지되었습니다: {document_name}")
+
         combine_choice = st.radio(
             "로드된 PDF 파일들을 합쳐서 분석할까요?",
             ("합쳐서 분석하기", "이미지 생성으로 진행하기")
@@ -275,23 +281,29 @@ def main():
 
                     combined_text = "\n\n".join(combined_texts)
 
-                    st.markdown("### 결합된 문서(일부)")
+                    st.markdown("### 결합된 문서 (미리보기)")
                     st.write(combined_text[:5000] + ("..." if len(combined_text) > 5000 else ""))
 
                     # 선택된 모델로 결합된 문서 분석
                     try:
                         llm = select_model_for_analysis()
 
-                        st.markdown("### 문서 분석 결과")
+                        st.markdown("### 문서 분석 결과 (요약 및 주요 포인트)")
 
                         analysis_prompt = (
                             "다음은 여러 PDF에서 추출한 결합된 텍스트입니다. "
                             "중요한 내용 요약, 주요 키포인트, 가능한 질문 및 주의할 점을 한국어로 정리해주세요.\n\n" + combined_text
                         )
 
-                        # 간단히 분석 결과를 가져와 보여줍니다.
+                        # LLM 호출
                         res = llm.generate([analysis_prompt])
-                        analysis_text = "".join([g.text for g in res.generations[0]])
+
+                        # 안전하게 모든 생성 텍스트를 합칩니다.
+                        analysis_text = ""
+                        for gen_list in res.generations:
+                            for gen in gen_list:
+                                text = getattr(gen, "text", None) or str(gen)
+                                analysis_text += text
 
                         st.text_area("문서 분석", value=analysis_text, height=400)
 
@@ -375,7 +387,14 @@ def main():
 
         # LLM 호출 (동기)
         res = llm.generate([prompt_text])
-        image_prompt = "".join([g.text for g in res.generations[0]]).strip()
+
+        # 안전하게 모든 생성 텍스트를 합칩니다.
+        image_prompt = ""
+        for gen_list in res.generations:
+            for gen in gen_list:
+                image_prompt += getattr(gen, "text", str(gen))
+
+        image_prompt = image_prompt.strip()
 
         if not image_prompt:
             st.error("프롬프트 생성에 실패했습니다.")
