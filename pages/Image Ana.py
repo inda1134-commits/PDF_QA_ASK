@@ -272,8 +272,8 @@ def main():
 
         prompt_text = IMAGE_PROMPT_TEMPLATE.format(user_input=user_input) + "\nImage URL: " + image_data_url
 
-        # st.markdown("### PROMPT")
-        # st.write(prompt_text)
+        st.markdown("### PROMPT")
+        st.write(prompt_text)
 
         st.markdown("### Image Prompt (영문)")
 
